@@ -8,8 +8,9 @@
 
 ## 访问
 
-- CDN（jsDelivr，GitHub 源）：https://cdn.jsdelivr.net/gh/ganyu143/pelican-bike-3d@main/index.html
-- 源仓库：https://github.com/ganyu143/pelican-bike-3d （public，分支 main）
+- **页面（GitHub Pages CDN，Fastly 全球节点）**：https://ganyu143.github.io/pelican-bike-3d/
+- 源仓库：https://github.com/ganyu143/pelican-bike-3d （public，分支 main，Pages 源 = main /）
+- 原始文件（jsDelivr）：https://cdn.jsdelivr.net/gh/ganyu143/pelican-bike-3d@main/index.html — 实测返回 `content-type: text/plain; charset=utf-8` + `nosniff`，浏览器只显示源码不渲染，因此不能当页面链接用（jsDelivr 对 HTML 文件的固定策略）
 - 本地：`index.html`（直接双击或 `python3 -m http.server` 打开均可）
 
 ## 文件
@@ -45,5 +46,5 @@
 
 ## 回滚 / 更新
 
-改 `index.html` → `git commit` → `git push` → jsDelivr 缓存约 5 分钟刷新；也可用 `@<commit-sha>` 或 `@main` 强制版本。
+改 `index.html` → `git commit` → `git push` → Pages 约 30–60 秒生效（`gh api repos/ganyu143/pelican-bike-3d/pages` 看 status）；jsDelivr 缓存约 5 分钟刷新。
 删除仓库：`gh repo delete ganyu143/pelican-bike-3d`（走确认）。
