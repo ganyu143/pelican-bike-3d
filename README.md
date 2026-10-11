@@ -19,6 +19,7 @@
 |---|---|
 | `index.html` | 全部代码（HTML + CSS + ES module），无外部模型/贴图资源 |
 | `README.md` | 本文件 |
+| `preview.png` | 线上页面截图（headless Chrome 实拍） |
 
 依赖：`three@0.186.1`（jsDelivr importmap：`three` + `three/addons/`）。
 
