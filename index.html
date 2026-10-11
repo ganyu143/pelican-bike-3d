@@ -4,37 +4,64 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>鹈鹕骑自行车 · PELICAN VELO — 3D</title>
-<meta name="description" content="Three.js 程序化建模：一只鹈鹕骑着自行车在黄昏运河边巡航。可交互 3D 场景，无外部模型资源。" />
-<meta name="theme-color" content="#160f22" />
+<meta name="description" content="Three.js 程序化建模 + 真实骑行动力学：一只鹈鹕骑着 3 速自行车在运河边巡航，爬坡、换挡、避让鱼筐。可交互 3D 场景，无外部模型资源。" />
+<meta name="theme-color" content="#0d0a14" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#eef1f0" media="(prefers-color-scheme: light)" />
 <link rel="icon" href="data:," />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" />
 <style>
   :root{
-    --bg:#0d0a14;
-    --panel:rgba(20,16,28,.66);
-    --panel-solid:#141020;
-    --line:rgba(255,225,190,.14);
-    --text:#f4efe6;
-    --dim:#b9ae9d;
-    --accent:#ffb347;
-    --accent-2:#ff6f59;
-    --ok:#7ad4a4;
-    --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+    /* 运河骑行观测台：浅色为基准（配正午场景），深色配黄昏/夜场景 */
+    --bg:#eef1f0; --panel:rgba(255,255,255,.74); --panel-solid:#f7f9f8;
+    --line:rgba(20,44,48,.16); --text:#13211f; --dim:#5b6a67;
+    --accent:#c2601c; --accent-2:#8f3f12;
+    --st-good:#199e70; --st-warn:#c98500; --st-bad:#e34948;
+    --grid:rgba(20,44,48,.12); --plot:#f7f9f8;
+    --s-speed:#c2601c; --s-cad:#1baf7a; --s-elev:#5f7d86;
+    --display:"Bricolage Grotesque",system-ui,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
     --sans:system-ui,-apple-system,"Segoe UI","Noto Sans SC",sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      color-scheme:dark;
+      --bg:#0d0a14; --panel:rgba(20,16,28,.66); --panel-solid:#141020;
+      --line:rgba(255,225,190,.14); --text:#f4efe6; --dim:#b9ae9d;
+      --accent:#ffb347; --accent-2:#ff6f59;
+      --st-good:#199e70; --st-warn:#c98500; --st-bad:#e66767;
+      --grid:rgba(255,225,190,.10); --plot:#141020;
+      --s-speed:#d95926; --s-cad:#199e70; --s-elev:#7fa6b3;
+    }
+  }
+  :root[data-theme="dark"]{
+    color-scheme:dark;
+    --bg:#0d0a14; --panel:rgba(20,16,28,.66); --panel-solid:#141020;
+    --line:rgba(255,225,190,.14); --text:#f4efe6; --dim:#b9ae9d;
+    --accent:#ffb347; --accent-2:#ff6f59;
+    --st-good:#199e70; --st-warn:#c98500; --st-bad:#e66767;
+    --grid:rgba(255,225,190,.10); --plot:#141020;
+    --s-speed:#d95926; --s-cad:#199e70; --s-elev:#7fa6b3;
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);overflow:hidden}
   #c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
-  #hud{position:fixed;inset:0;pointer-events:none;padding:clamp(10px,2vw,22px);display:grid;
-       grid-template-columns:minmax(220px,270px) 1fr minmax(150px,190px);
-       grid-template-rows:auto 1fr auto;gap:12px}
+  #hud{position:fixed;inset:0;pointer-events:none;padding:clamp(10px,2vw,22px);
+        padding-block:clamp(10px,2vw,22px);display:grid;
+        grid-template-columns:minmax(228px,272px) 1fr minmax(248px,296px);
+        grid-template-rows:auto auto 1fr auto;gap:12px}
   .card{pointer-events:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;
         padding:12px 14px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
         box-shadow:0 10px 30px rgba(0,0,0,.35)}
   .title-card{grid-column:1;grid-row:1}
   .eyebrow{font:600 10px/1.4 var(--mono);letter-spacing:.16em;color:var(--accent);text-transform:uppercase}
-  h1{margin:.28em 0 .1em;font-size:clamp(20px,2.4vw,28px);font-weight:700;letter-spacing:.02em}
+  h1{margin:.28em 0 .1em;font-family:var(--display);font-size:clamp(20px,2.4vw,28px);font-weight:700;
+     letter-spacing:.01em;text-wrap:balance}
   .title-card p{margin:0;color:var(--dim);font-size:12px;letter-spacing:.04em}
   .panel{grid-column:1;grid-row:2;align-self:start}
+  .figure-card{grid-column:1;grid-row:3;align-self:end}
+  .charts{grid-column:3;grid-row:2;align-self:start}
   .row{display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:8px;margin:10px 0}
   .row label{font:600 11px/1 var(--mono);color:var(--dim);letter-spacing:.08em}
   .row output,.row .val{font:600 12px/1 var(--mono);color:var(--accent);font-variant-numeric:tabular-nums}
@@ -44,48 +71,90 @@
       background:#fff;border:3px solid var(--accent);cursor:grab}
   input[type=range]::-moz-range-track{height:4px;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-2))}
   input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
-  select{width:100%;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);
+  select{width:100%;background:rgba(127,127,127,.10);color:var(--text);border:1px solid var(--line);
          border-radius:8px;padding:6px 8px;font:500 12px/1.2 var(--sans)}
+  button:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .chips,.cams{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
-  button{pointer-events:auto;background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);
+  button{pointer-events:auto;background:rgba(127,127,127,.10);color:var(--text);border:1px solid var(--line);
          border-radius:99px;padding:7px 12px;font:600 11px/1 var(--mono);letter-spacing:.06em;cursor:pointer;
          transition:background .18s,border-color .18s,transform .12s}
-  button:hover{background:rgba(255,179,71,.16);border-color:rgba(255,179,71,.5)}
+  button:hover{background:color-mix(in srgb,var(--accent) 18%,transparent);border-color:var(--accent)}
   button:active{transform:translateY(1px)}
-  button[aria-pressed=true]{background:var(--accent);color:#1a1206;border-color:var(--accent)}
+  button[aria-pressed=true]{background:var(--accent);color:var(--bg);border-color:var(--accent)}
   .stats{grid-column:3;grid-row:1;display:grid;gap:8px}
   .stats div{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
   .stats span{font:600 10px/1 var(--mono);letter-spacing:.1em;color:var(--dim);text-transform:uppercase}
   .stats b{font:700 17px/1 var(--mono);font-variant-numeric:tabular-nums;color:var(--text)}
   .stats i{font:500 10px/1 var(--mono);color:var(--dim);font-style:normal}
-  .hint{grid-column:1/-1;grid-row:3;justify-self:center;pointer-events:none;
-        font:500 11px/1.6 var(--mono);color:rgba(244,239,230,.55);text-align:center;letter-spacing:.04em}
-  .hint kbd{background:rgba(255,255,255,.1);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
-  #loader{position:fixed;inset:0;display:grid;place-items:center;background:#0d0a14;z-index:20;transition:opacity .5s}
+  .pill{display:inline-flex;align-items:center;gap:6px;font:600 10px/1 var(--mono);letter-spacing:.1em;
+        text-transform:uppercase;color:var(--dim);border:1px solid var(--line);border-radius:99px;padding:5px 9px}
+  .pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--st-good)}
+  .pill[data-state=climb]::before{background:var(--st-warn)}
+  .pill[data-state=evade]::before{background:var(--accent-2)}
+  .pill[data-state=limp]::before{background:var(--st-bad)}
+  .pill[data-state=air]::before{background:var(--s-elev)}
+  /* 读数图 */
+  .chart-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+  .chart-head h2{margin:0;font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.01em}
+  #chart{display:block;width:100%;height:196px}
+  .legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font:500 10px/1.4 var(--mono);color:var(--dim)}
+  .legend i{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+  #chartTip{position:absolute;pointer-events:none;display:none;background:var(--panel-solid);border:1px solid var(--line);
+            border-radius:8px;padding:6px 8px;font:600 10px/1.6 var(--mono);font-variant-numeric:tabular-nums;
+            color:var(--text);white-space:nowrap;z-index:5}
+  #chartWrap{position:relative}
+  table.data{width:100%;border-collapse:collapse;font:500 11px/1.6 var(--mono);font-variant-numeric:tabular-nums;
+             overflow-x:auto}
+  table.data th,table.data td{text-align:right;padding:3px 4px;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.data th:first-child,table.data td:first-child{text-align:left}
+  table.data th{color:var(--dim);font-weight:600;letter-spacing:.06em}
+  [hidden]{display:none!important}
+  /* 传动示意图 */
+  figure{margin:0}
+  figure svg{display:block;width:100%;height:auto;max-width:100%;color:var(--text)}
+  figcaption{margin-top:6px;font:500 11px/1.6 var(--mono);color:var(--dim)}
+  .spec{width:100%;border-collapse:collapse;font:500 11px/1.7 var(--mono);margin-top:8px}
+  .spec td{padding:3px 2px;border-bottom:1px solid var(--line);color:var(--dim)}
+  .spec td:last-child{text-align:right;color:var(--text);font-variant-numeric:tabular-nums}
+  .hint{grid-column:1/-1;grid-row:4;justify-self:center;pointer-events:none;max-width:72ch;
+        font:500 11px/1.6 var(--mono);color:var(--dim);text-align:center;letter-spacing:.04em}
+  .hint kbd{background:rgba(127,127,127,.16);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+  #loader{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:20;transition:opacity .5s}
   #loader.done{opacity:0;pointer-events:none}
   #loader .box{text-align:center;font:600 12px/1.8 var(--mono);color:var(--dim);letter-spacing:.12em}
-  #loader .bar{width:190px;height:3px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden;margin:14px auto 0}
+  #loader .bar{width:190px;height:3px;border-radius:99px;background:var(--grid);overflow:hidden;margin:14px auto 0}
   #loader .bar i{display:block;height:100%;width:35%;background:linear-gradient(90deg,var(--accent),var(--accent-2));
                  animation:slide 1.1s infinite ease-in-out}
   @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
-  #err{position:fixed;inset:0;display:none;place-items:center;padding:24px;background:#0d0a14;z-index:30;text-align:center}
+  #err{position:fixed;inset:0;display:none;place-items:center;padding:24px;background:var(--bg);z-index:30;text-align:center}
   #err p{max-width:520px;color:var(--accent-2);font:600 13px/1.7 var(--mono)}
   #help{position:fixed;inset:0;display:none;place-items:center;background:rgba(8,6,12,.72);z-index:25;backdrop-filter:blur(6px)}
   #help.open{display:grid}
-  #help .card{max-width:520px;pointer-events:auto}
-  #help h2{margin:0 0 10px;font-size:16px}
+  #help .card{max-width:560px;pointer-events:auto;max-height:86vh;overflow:auto}
+  #help h2{margin:0 0 10px;font-family:var(--display);font-size:16px}
   #help table{width:100%;border-collapse:collapse;font:500 12px/1.7 var(--mono)}
-  #help td{padding:5px 4px;border-bottom:1px solid rgba(255,255,255,.07);color:var(--dim)}
+  #help td{padding:5px 4px;border-bottom:1px solid var(--line);color:var(--dim)}
   #help td:first-child{color:var(--accent);white-space:nowrap;width:110px}
-  #panelToggle{display:none}
-  @media (max-width:820px){
+  #panelToggle,#chartsToggle{display:none}
+  @media (max-width:900px){
     #hud{grid-template-columns:1fr auto;grid-template-rows:auto auto 1fr auto}
     .title-card{grid-column:1/-1;grid-row:1;padding:10px 12px}
-    .stats{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(4,1fr);gap:6px}
+    .stats{grid-column:1/-1;grid-row:2;grid-template-columns:repeat(3,1fr);gap:6px}
     .stats b{font-size:14px}
-    .panel{grid-column:1/-1;grid-row:3;align-self:end;max-height:46vh;overflow:auto}
-    .panel.collapsed{display:none}
-    #panelToggle{display:inline-block}
+    /* 手机上控制面板与读数卡同一时间只开一个，贴在画面下方，中间留给 3D */
+    .panel,.charts{position:fixed;left:clamp(10px,2vw,22px);bottom:calc(66px + env(safe-area-inset-bottom,0px));
+                   width:min(360px,calc(100% - 2 * clamp(10px,2vw,22px)));max-height:46vh;overflow:auto;z-index:6}
+    .panel.collapsed,.charts.collapsed{display:none}
+    .figure-card{display:none}
+    .hint{grid-column:1/-1;grid-row:4}
+    #panelToggle,#chartsToggle{display:inline-block}
+  }
+  @media (max-width:560px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #loader .bar i{animation:none;width:100%}
+    button{transition:none}
   }
 </style>
 </head>
@@ -94,26 +163,36 @@
 
 <div id="hud">
   <header class="card title-card">
-    <div class="eyebrow">Three.js · 程序化建模 · 无外部模型</div>
+    <div class="eyebrow">Three.js · 程序化建模 · 骑行动力学</div>
     <h1>鹈鹕骑自行车</h1>
-    <p>PELICAN VELO — 黄昏运河边的巡航</p>
-    <div class="cams" style="margin-top:8px"><button id="panelToggle">面板</button></div>
+    <p>PELICAN VELO — 运河边的 3 速巡航</p>
+    <div class="cams" style="margin-top:8px">
+      <button id="panelToggle" aria-pressed="false">面板</button>
+      <button id="chartsToggle" aria-pressed="false">读数</button>
+    </div>
   </header>
 
   <section class="card panel" id="panel">
     <div class="row">
-      <label for="speed">速度</label>
-      <input id="speed" type="range" min="0" max="60" value="30" />
+      <label for="speed">目标速度</label>
+      <input id="speed" type="range" min="0" max="45" value="30" step="1" />
       <output id="speedOut">30.0</output>
-
     </div>
     <div class="row">
       <label for="pose">姿态</label>
       <select id="pose">
-        <option value="cruise">巡航</option>
+        <option value="cruise">巡航（坐姿）</option>
         <option value="wheelie">翘头</option>
-        <option value="sprint">冲刺</option>
-        <option value="rest">休息</option>
+        <option value="sprint">冲刺（起立摇车）</option>
+        <option value="rest">休息（滑行）</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="gear">档位</label>
+      <select id="gear">
+        <option value="0">1× 30/16 爬坡</option>
+        <option value="1">2× 39/16 平路</option>
+        <option value="2" selected>3× 48/16 高速</option>
       </select>
     </div>
     <div class="row">
@@ -126,6 +205,7 @@
       </select>
     </div>
     <div class="chips">
+      <button data-act="brake" aria-pressed="false">制动 S</button>
       <button data-act="bloom" aria-pressed="false">辉光</button>
       <button data-act="audio" aria-pressed="false">声音</button>
       <button data-act="orbit" aria-pressed="false">自动环绕</button>
@@ -141,13 +221,77 @@
   </section>
 
   <section class="card stats">
+    <div><span>状态</span><b class="pill" id="stState" data-state="cruise">巡航</b></div>
     <div><span>速度</span><b id="stSpeed">0.0</b><i>km/h</i></div>
     <div><span>踏频</span><b id="stCad">0</b><i>rpm</i></div>
+    <div><span>功率</span><b id="stPower">0</b><i>W</i></div>
+    <div><span>坡度</span><b id="stGrade">0.0</b><i>%</i></div>
     <div><span>里程</span><b id="stDist">0.00</b><i>km</i></div>
+    <div><span>个人最佳</span><b id="stBest">0.00</b><i>km</i></div>
     <div><span>FPS</span><b id="stFps">0</b><i>fps</i></div>
   </section>
 
-  <div class="hint">拖动旋转 · 滚轮缩放 · 点击鹈鹕/车铃 · <kbd>空格</kbd>鸣叫 <kbd>↑↓</kbd>速度 <kbd>1-4</kbd>视角 <kbd>B</kbd>辉光 <kbd>N</kbd>夜 <kbd>P</kbd>截图 <kbd>H</kbd>帮助</div>
+  <section class="card charts" id="chartsCard">
+    <div class="chart-head">
+      <h2>最近 60 秒</h2>
+      <button data-act="table" aria-pressed="false" id="tableBtn">数据表</button>
+    </div>
+    <div id="chartWrap">
+      <canvas id="chart" width="280" height="196" role="img"
+              aria-label="最近 60 秒的速度、踏频与路面剖面曲线"></canvas>
+      <div id="chartTip"></div>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--s-speed)"></i>速度 km/h</span>
+      <span><i style="background:var(--s-cad)"></i>踏频 rpm</span>
+      <span><i style="background:var(--s-elev)"></i>路面剖面 m</span>
+    </div>
+    <table class="data" id="dataTable" hidden>
+      <thead><tr><th>t</th><th>km/h</th><th>rpm</th><th>W</th><th>坡度 %</th></tr></thead>
+      <tbody id="dataBody"></tbody>
+    </table>
+  </section>
+
+  <section class="card figure-card">
+    <figure>
+      <svg viewBox="0 0 320 176" role="img" aria-label="传动链示意图：踏频经牙盘、链条、飞轮传到后轮，后轮与地面接触点产生前进速度">
+        <defs>
+          <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 1 L9 5 L0 9 z" fill="currentColor" />
+          </marker>
+        </defs>
+        <line x1="8" y1="152" x2="312" y2="152" stroke="currentColor" stroke-width="1.5" opacity=".45" />
+        <g fill="none" stroke="currentColor" stroke-width="1.6">
+          <circle cx="72" cy="108" r="44" />
+          <circle cx="72" cy="108" r="11" />
+          <circle cx="212" cy="108" r="25" />
+          <line x1="72" y1="97" x2="212" y2="83" />
+          <line x1="72" y1="119" x2="212" y2="133" />
+          <line x1="212" y1="108" x2="232" y2="92" />
+        </g>
+        <rect x="226" y="88" width="16" height="6" rx="2" fill="currentColor" opacity=".8" />
+        <path d="M212 74 A 34 34 0 0 1 246 108" fill="none" stroke="currentColor" stroke-width="1.4"
+              stroke-dasharray="4 3" marker-end="url(#arw)" opacity=".8" />
+        <line x1="116" y1="152" x2="150" y2="152" stroke="currentColor" stroke-width="2" marker-end="url(#arw)" />
+        <text x="212" y="66" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" text-anchor="middle">牙盘 48T</text>
+        <text x="72" y="66" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" text-anchor="middle">飞轮 16T</text>
+        <text x="248" y="126" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">踏频</text>
+        <text x="152" y="146" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor">速度 v</text>
+        <text x="142" y="112" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" text-anchor="middle" id="svgRatio">48:16</text>
+        <text x="72" y="168" font-family="IBM Plex Mono,monospace" font-size="12" fill="currentColor" text-anchor="middle">后轮 0.35 m</text>
+      </svg>
+      <figcaption id="figCaption">踏频 × 齿比 × 轮周长 = 速度</figcaption>
+    </figure>
+    <table class="spec">
+      <tr><td>鹈鹕 + 整车</td><td>5.2 + 11.5 kg</td></tr>
+      <tr><td>风阻面积 CdA</td><td>0.42 m²</td></tr>
+      <tr><td>滚阻系数 Crr</td><td>0.0055</td></tr>
+      <tr><td>最大持续功率</td><td>165 W（摇车 320 W）</td></tr>
+      <tr><td>传动效率</td><td>95 %</td></tr>
+    </table>
+  </section>
+
+  <div class="hint">拖动旋转 · 滚轮缩放 · 点击鹈鹕/车铃 · <kbd>空格</kbd>鸣叫 <kbd>↑↓</kbd>目标速度 <kbd>G</kbd>换挡 <kbd>S</kbd>制动 <kbd>J</kbd>跳 <kbd>1-4</kbd>视角 <kbd>B</kbd>辉光 <kbd>N</kbd>夜 <kbd>T</kbd>数据表 <kbd>P</kbd>截图 <kbd>H</kbd>帮助</div>
 </div>
 
 <div id="loader">
@@ -164,14 +308,26 @@
     <h2>操作</h2>
     <table>
       <tr><td>空格</td><td>鹈鹕鸣叫（BWAARK），翅膀抖一下</td></tr>
-      <tr><td>↑ / ↓</td><td>加速 / 减速</td></tr>
+      <tr><td>↑ / ↓</td><td>目标速度 ±2 km/h（骑手用功率去追这个目标）</td></tr>
+      <tr><td>G</td><td>换挡 1× → 2× → 3×；档位决定同样速度下的踏频</td></tr>
+      <tr><td>S</td><td>按住制动（0.35 摩擦系数），松开后靠惯性滑行</td></tr>
+      <tr><td>J</td><td>跳起（越过路面鱼筐）</td></tr>
       <tr><td>1 2 3 4</td><td>侧视 / 正面 / 尾随 / 鸟瞰</td></tr>
       <tr><td>B</td><td>辉光（UnrealBloom）开关</td></tr>
       <tr><td>N</td><td>黄昏 ↔ 夜 切换</td></tr>
+      <tr><td>T</td><td>读数曲线 ↔ 数据表切换</td></tr>
       <tr><td>P</td><td>下载当前画面 PNG</td></tr>
       <tr><td>R</td><td>复位视角与参数</td></tr>
       <tr><td>鼠标拖动</td><td>轨道相机；滚轮缩放；右键平移</td></tr>
       <tr><td>点击模型</td><td>点鹈鹕=鸣叫，点车铃=叮，点喉囊=鱼跳出来</td></tr>
+    </table>
+    <h2 style="margin-top:14px">物理</h2>
+    <table>
+      <tr><td>驱动力</td><td>骑手功率 ÷ 速度，受最大持续功率限制；传动效率 95 %</td></tr>
+      <tr><td>阻力</td><td>风阻 ½ρCdA v² + 滚阻 Crr·mg·cosθ + 坡度阻力 mg·sinθ</td></tr>
+      <tr><td>路面</td><td>运河堤岸剖面：两座桥丘，坡度实时进入受力平衡</td></tr>
+      <tr><td>障碍</td><td>前方鱼筐/苍鹭出现后，由避让策略决定制动、绕开、跳起还是按铃</td></tr>
+      <tr><td>踏频提示</td><td>&gt; 110 rpm 该升档，&lt; 45 rpm 该降档（状态灯变黄）</td></tr>
     </table>
     <div class="cams"><button data-act="help">关闭</button></div>
   </div>
@@ -196,8 +352,17 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const $ = (s) => document.querySelector(s);
 const canvas = $('#c');
-const IS_MOBILE = matchMedia('(max-width: 820px)').matches;
+const IS_MOBILE = matchMedia('(max-width: 900px)').matches;
 const REDUCE = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const LIGHT_UI = matchMedia('(prefers-color-scheme: light)').matches;
+
+/* 本机偏好：读失败用默认值，写失败不影响页面（隐私模式/禁用站点数据） */
+const STORE_KEY = 'pelican-velo-v2';
+const PREFS = { pose: 'cruise', light: LIGHT_UI ? 'noon' : 'sunset', gear: 2, best: 0 };
+try {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (raw) Object.assign(PREFS, JSON.parse(raw) || {});
+} catch (e) { /* 忽略：用默认偏好继续 */ }
 
 function fail(msg) {
   $('#errMsg').textContent = msg;
@@ -280,9 +445,10 @@ function setPalette(name) {
   numT.exposure = src.exposure; numT.stars = src.stars; numT.lamp = src.lamp;
   sunDirT.set(...src.sunDir).normalize();
 }
-setPalette('sunset');
+setPalette(PREFS.light);
 for (const k of Object.keys(P)) P[k].copy(P_T[k]);
 Object.assign(num, numT);
+sunDir.copy(sunDirT);
 
 scene.fog = new THREE.FogExp2(P.fog.getHex(), num.fogD);
 
@@ -397,37 +563,73 @@ const waterTex = (() => {
   return t;
 })();
 
-/* ------------------------------------------------------------------ ground */
-const ground = new THREE.Mesh(
-  new THREE.CircleGeometry(120, 72),
+/* ------------------------------------------------------------------ 路面剖面（堤岸 + 两座桥丘） */
+const TER = { a1: 1.15, L1: 260, a2: 0.55, L2: 96, ph: 1.1, half: 5.0, blend: 13 };
+const K1 = 2 * Math.PI / TER.L1, K2 = 2 * Math.PI / TER.L2;
+const elev = (x) => TER.a1 * Math.sin(K1 * x) + TER.a2 * Math.sin(K2 * x + TER.ph);
+const grade = (x) => TER.a1 * K1 * Math.cos(K1 * x) + TER.a2 * K2 * Math.cos(K2 * x + TER.ph);
+const falloff = (worldZ) => Math.min(1, Math.max(0, (TER.blend - Math.abs(worldZ)) / (TER.blend - TER.half)));
+const terrainY = (worldX, worldZ) => elev(worldX) * falloff(worldZ);
+
+// 平面绕 X 轴转 -90°：局部 y = -世界 z，局部 z = 世界高度。原始坐标与衰减预存，逐帧只算三角函数。
+function prepareTerrain(mesh) {
+  const pos = mesh.geometry.attributes.position, n = pos.count;
+  mesh.userData.base = new Float32Array(n * 2);
+  mesh.userData.fall = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    mesh.userData.base[i * 2] = x;
+    mesh.userData.base[i * 2 + 1] = y;
+    mesh.userData.fall[i] = falloff(-y);
+  }
+  mesh.geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  return mesh;
+}
+function sculptTerrain(mesh, dist, offset = 0) {
+  const pos = mesh.geometry.attributes.position, nor = mesh.geometry.attributes.normal;
+  const base = mesh.userData.base, fall = mesh.userData.fall;
+  for (let i = 0; i < pos.count; i++) {
+    const f = fall[i], x = base[i * 2] + dist;
+    pos.setZ(i, elev(x) * f + offset);
+    const g = grade(x) * f, inv = 1 / Math.sqrt(g * g + 1);
+    nor.setXYZ(i, -g * inv, 0, inv);
+  }
+  pos.needsUpdate = true; nor.needsUpdate = true;
+}
+
+const ground = prepareTerrain(new THREE.Mesh(
+  new THREE.PlaneGeometry(300, 300, 72, 72),
   new THREE.MeshStandardMaterial({ color: P.ground, map: groundTex, roughness: 0.95, metalness: 0 })
-);
+));
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-const road = new THREE.Mesh(
-  new THREE.PlaneGeometry(220, 6.4),
+const road = prepareTerrain(new THREE.Mesh(
+  new THREE.PlaneGeometry(240, 6.4, 120, 4),
   new THREE.MeshStandardMaterial({ color: P.road, map: roadTex, roughness: 0.85, metalness: 0.02 })
-);
+));
 road.rotation.x = -Math.PI / 2;
 road.position.y = 0.012;
 road.receiveShadow = true;
 scene.add(road);
 
 const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(220, 11),
+  new THREE.PlaneGeometry(240, 14),
   new THREE.MeshPhongMaterial({ color: P.water, map: waterTex, specular: 0xbfe6ff, shininess: 70, transparent: true, opacity: 0.94 })
 );
 water.rotation.x = -Math.PI / 2;
-water.position.set(0, 0.02, 9.5);
+water.position.set(0, -1.9, 11);
 scene.add(water);
 
-const bank = new THREE.Mesh(
-  new THREE.BoxGeometry(220, 0.5, 1.4),
+// 堤坡：从路面高度往下退一档，接到运河
+const bank = prepareTerrain(new THREE.Mesh(
+  new THREE.PlaneGeometry(240, 5, 120, 4),
   new THREE.MeshStandardMaterial({ color: 0x5b5040, roughness: 1 })
-);
-bank.position.set(0, -0.2, 4.2);
+));
+bank.rotation.x = -Math.PI / 2;
+bank.position.set(0, 0, 7);
+bank.receiveShadow = true;
 scene.add(bank);
 
 /* ------------------------------------------------------------------ props (recycled for motion) */
@@ -473,14 +675,14 @@ for (let i = 0; i < 10; i++) {
   o.userData.speed = 0.35;
   scene.add(o); props.push(o);
 }
-// reeds along the canal
+// 芦苇长在运河边（运河以外的地面是平的，所以芦苇不用逐帧跟地形）
 const reedGeo = new THREE.CylinderGeometry(0.02, 0.04, 1.1, 5);
 const reedMat = new THREE.MeshStandardMaterial({ color: 0x6f7a3a, roughness: 1 });
 const reeds = new THREE.InstancedMesh(reedGeo, reedMat, 160);
 {
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3();
   for (let i = 0; i < 160; i++) {
-    v.set(-60 + Math.random() * 120, 0.5, 3.9 + Math.random() * 1.1);
+    v.set(-60 + Math.random() * 120, -1.35, 10.4 + Math.random() * 2.2);
     e.set((Math.random() - 0.5) * 0.25, Math.random() * Math.PI, (Math.random() - 0.5) * 0.3);
     q.setFromEuler(e); s.set(1, 0.7 + Math.random() * 0.8, 1);
     m.compose(v, q, s); reeds.setMatrixAt(i, m);
@@ -511,6 +713,7 @@ for (let i = 0; i < 12; i++) {
   }
   g.position.set(-80 + i * 16, 12 + Math.random() * 8, -25 + Math.random() * 50);
   g.userData.speed = 0.06;
+  g.userData.air = true;   // 云不跟地形
   scene.add(g); clouds.push(g); props.push(g);
 }
 // dust motes
@@ -565,7 +768,7 @@ function bone(len, r1, r2, mat) {
 }
 
 /* ------------------------------------------------------------------ bicycle */
-const WHEEL_R = 0.35, CRANK_R = 0.17, GEAR = 0.32, BB = [0, 0.33], REAR = [-0.58, 0.35], FRONT = [0.58, 0.35];
+const WHEEL_R = 0.35, CRANK_R = 0.17, BB = [0, 0.33], REAR = [-0.58, 0.35], FRONT = [0.58, 0.35];
 
 function makeWheel() {
   const g = new THREE.Group();
@@ -806,6 +1009,74 @@ pelican.rotation.z = 0.06;
 bikeParts.add(bike, pelican);
 tilt.add(bikeParts); rig.add(tilt); scene.add(rig);
 
+/* ------------------------------------------------------------------ 路面障碍 */
+const crateMat = new THREE.MeshStandardMaterial({ color: 0x8a5a26, roughness: 0.9 });
+function makeCrate() {
+  const g = new THREE.Group();
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.42, 0.55), crateMat);
+  box.position.y = 0.21; box.castShadow = true; box.receiveShadow = true;
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.06, 0.59), new THREE.MeshStandardMaterial({ color: 0x6d4419, roughness: 0.9 }));
+  lid.position.y = 0.45; lid.castShadow = true;
+  const fish = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.2, 6, 10), MAT.fish);
+  fish.rotation.z = Math.PI / 2; fish.position.set(0.05, 0.52, 0); fish.castShadow = true;
+  g.add(box, lid, fish);
+  g.userData.what = '鱼筐';
+  return g;
+}
+function makeHeron() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.26, 14, 10),
+    new THREE.MeshStandardMaterial({ color: 0x9aa3a8, roughness: 0.85, flatShading: true }));
+  body.scale.set(1.5, 1, 0.8); body.position.y = 0.5; body.castShadow = true;
+  const neck = tube([[0.15, 0.62], [0.3, 1.15]], 0.05, 10);
+  const bill = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.42, 8),
+    new THREE.MeshStandardMaterial({ color: 0xd8c9a0, roughness: 0.6 }));
+  bill.rotation.z = -Math.PI / 2.2; bill.position.set(0.55, 1.18, 0); bill.castShadow = true;
+  const legs = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 6),
+    new THREE.MeshStandardMaterial({ color: 0x77706a, roughness: 0.7 }));
+  legs.position.y = 0.25;
+  g.add(body, neck, bill, legs);
+  g.userData.what = '苍鹭';
+  return g;
+}
+const hazards = [];
+function spawnHazard(dist) {
+  if (hazards.length >= 3) return;
+  const o = Math.random() > 0.45 ? makeCrate() : makeHeron();
+  o.position.set(78, 0, (Math.random() > 0.5 ? 1 : -1) * (0.4 + Math.random() * 1.3));
+  o.position.y = terrainY(o.position.x + dist, o.position.z);
+  o.userData.resolved = null;
+  o.userData.flee = 0;
+  scene.add(o); hazards.push(o);
+}
+
+/* ------------------------------------------------------------------ 避让策略
+ * TODO(human) —— 这一段是你的设计决定，请替换成你认为更好的判断。
+ * 输入 ctx（都是实测物理量）：
+ *   v 当前速度 m/s · grade 当前坡度（小数）· cadence 踏频 rpm · gear 档位 0..2
+ *   distToHazard 到障碍的米数 · lateralClear 侧向是否有空间（布尔）
+ *   airborne 是否在腾空 · braking 是否已在制动
+ * 返回一个字符串：'brake' 制动 | 'swerve' 侧向绕开 | 'jump' 跳起 | 'bell' 按铃不动作 | null 不动作
+ * 约束：jump 只在 v > 4 m/s 时能跳过去；swerve 需要 lateralClear；brake 需要留出制动距离
+ *      （约 v² / (2 · 0.35 · 9.81) 米）。判错会撞上：速度掉 65 %、HUD 亮红灯。
+ */
+function chooseEvadeAction(ctx) {
+  if (ctx.distToHazard > 13) return null;                       // 还没到决策点
+  const brakeDist = (ctx.v * ctx.v) / (2 * 0.35 * 9.81);
+  if (brakeDist < ctx.distToHazard - 1) return 'brake';
+  if (ctx.lateralClear && ctx.v < 9) return 'swerve';
+  if (ctx.v > 4 && ctx.cadence > 60) return 'jump';
+  return 'bell';
+}
+function applyEvade(act, hz) {
+  state.evade = act;
+  state.evadeTimer = 2.2;
+  if (act === 'brake') { state.brakeAuto = 2.4; updateBrake(); }
+  else if (act === 'swerve') { state.swerveTarget = hz.position.z > 0 ? -1.25 : 1.25; }
+  else if (act === 'jump' && state.v > 4) { state.jumpV = 3.6; state.flap = 1; }
+  else if (act === 'bell') { Audio.ding(); if (hz.userData.what === '苍鹭') hz.userData.flee = 1; }
+}
+
 /* ------------------------------------------------------------------ post-processing */
 const composer = new EffectComposer(renderer);
 composer.addPass(new RenderPass(scene, camera));
@@ -879,21 +1150,54 @@ const Audio = {
       o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 1);
     }
   },
+  thud() {
+    if (!this.ctx) this.start();
+    const ctx = this.ctx, t = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(48, t + 0.3);
+    g.gain.setValueAtTime(0.35, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+    o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.4);
+    const n = ctx.createBufferSource();
+    const b = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.25), ctx.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    n.buffer = b;
+    const ng = ctx.createGain(); ng.gain.value = 0.18;
+    const nf = ctx.createBiquadFilter(); nf.type = 'lowpass'; nf.frequency.value = 900;
+    n.connect(nf).connect(ng).connect(ctx.destination); n.start(t);
+  },
 };
 
-/* ------------------------------------------------------------------ state + UI */
+/* ------------------------------------------------------------------ 骑行参数 */
+const RIDER = { mRider: 5.2, mBike: 11.5, rho: 1.225, CdA: 0.42, Crr: 0.0055, mu: 0.35, eff: 0.95, g: 9.81 };
+const GEARS = [{ teeth: 30, ratio: 30 / 16 }, { teeth: 39, ratio: 39 / 16 }, { teeth: 48, ratio: 48 / 16 }];
+const MASS = RIDER.mRider + RIDER.mBike;
+const POSE = {
+  cruise: { tilt: 0, lean: 0.06, bob: 1, power: 165 },
+  wheelie: { tilt: 0.26, lean: -0.1, bob: 1.2, power: 210 },
+  sprint: { tilt: 0.05, lean: 0.3, bob: 1.5, power: 320 },
+  rest: { tilt: 0, lean: 0.02, bob: 0.3, power: 0 },
+};
+
+/* ------------------------------------------------------------------ 状态 */
 const state = {
-  speed: 30, pose: 'cruise', light: 'sunset',
-  bloom: false, orbit: false,
+  speed: 30, pose: POSE[PREFS.pose] ? PREFS.pose : 'cruise',
+  light: PALETTES[PREFS.light] ? PREFS.light : (LIGHT_UI ? 'noon' : 'sunset'),
+  gear: [0, 1, 2].includes(PREFS.gear) ? PREFS.gear : 2,
+  bloom: false, orbit: false, audioOn: false,
   v: 0, dist: 0, crankAngle: 0, honk: 0, flap: 0, fishPop: 0,
   tilt: 0, camTarget: null,
+  braking: false, brakeKey: false, brakeBtnOn: false, brakeAuto: 0,
+  jumpY: 0, jumpV: 0, swerve: 0, swerveTarget: 0,
+  evade: '', evadeTimer: 0, crash: 0, crashWhat: '', power: 0, grade: 0, cadence: 0,
+  nextHazardAt: 160 + Math.random() * 240,
 };
-const POSE = {
-  cruise: { tilt: 0, lean: 0.06, cad: 1.0, bob: 1 },
-  wheelie: { tilt: 0.26, lean: -0.1, cad: 1.15, bob: 1.2 },
-  sprint: { tilt: 0.05, lean: 0.3, cad: 1.7, bob: 1.5 },
-  rest: { tilt: 0, lean: 0.02, cad: 0.35, bob: 0.3 },
-};
+let best = Number.isFinite(PREFS.best) ? PREFS.best : 0;
+function savePrefs() {
+  PREFS.pose = state.pose; PREFS.light = state.light; PREFS.gear = state.gear; PREFS.best = best;
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(PREFS)); } catch (e) { /* 存不下就算了 */ }
+}
 const CAMS = {
   side: { pos: [-1.4, 1.9, 5.2], tgt: [0.1, 1.15, 0] },
   front: { pos: [5.0, 1.5, 1.4], tgt: [0.2, 1.2, 0] },
@@ -902,22 +1206,67 @@ const CAMS = {
 };
 
 const el = {
-  speed: $('#speed'), speedOut: $('#speedOut'), pose: $('#pose'), light: $('#light'),
+  speed: $('#speed'), speedOut: $('#speedOut'), pose: $('#pose'), light: $('#light'), gear: $('#gear'),
   stSpeed: $('#stSpeed'), stCad: $('#stCad'), stDist: $('#stDist'), stFps: $('#stFps'),
-  panel: $('#panel'), help: $('#help'),
+  stPower: $('#stPower'), stGrade: $('#stGrade'), stState: $('#stState'), stBest: $('#stBest'),
+  panel: $('#panel'), chartsCard: $('#chartsCard'), help: $('#help'), brakeBtn: document.querySelector('[data-act=brake]'),
+  tableBtn: $('#tableBtn'), dataTable: $('#dataTable'), dataBody: $('#dataBody'),
+  chart: $('#chart'), tip: $('#chartTip'), figCaption: $('#figCaption'), svgRatio: $('#svgRatio'),
 };
+el.speed.value = state.speed;
+el.pose.value = state.pose;
+el.light.value = state.light;
+el.gear.value = String(state.gear);
+el.stBest.textContent = (best / 1000).toFixed(2);
+
 el.speed.addEventListener('input', () => { state.speed = +el.speed.value; syncSpeed(); });
-el.pose.addEventListener('change', () => { state.pose = el.pose.value; });
-el.light.addEventListener('change', () => { state.light = el.light.value; setPalette(state.light); });
-$('#panelToggle').addEventListener('click', () => el.panel.classList.toggle('collapsed'));
+el.pose.addEventListener('change', () => { state.pose = el.pose.value; savePrefs(); });
+el.light.addEventListener('change', () => { state.light = el.light.value; setPalette(state.light); savePrefs(); });
+el.gear.addEventListener('change', () => { state.gear = +el.gear.value; savePrefs(); updateDriveLabels(); });
+/* 窄屏：控制面板与读数卡同一时间只开一个，中间留给 3D 画面 */
+const MOBILE_CARDS = [el.panel, el.chartsCard];
+function openCard(card) {
+  const wasClosed = card.classList.contains('collapsed');
+  MOBILE_CARDS.forEach(c => c.classList.add('collapsed'));
+  if (wasClosed) card.classList.remove('collapsed');
+  $('#panelToggle').setAttribute('aria-pressed', String(!el.panel.classList.contains('collapsed')));
+  $('#chartsToggle').setAttribute('aria-pressed', String(!el.chartsCard.classList.contains('collapsed')));
+}
+$('#panelToggle').addEventListener('click', () => openCard(el.panel));
+$('#chartsToggle').addEventListener('click', () => openCard(el.chartsCard));
+if (IS_MOBILE) { el.panel.classList.add('collapsed'); el.chartsCard.classList.add('collapsed'); }
+
+function updateBrake() {
+  state.braking = !!(state.brakeKey || state.brakeBtnOn || state.brakeAuto > 0);
+  el.brakeBtn.setAttribute('aria-pressed', String(state.braking));
+}
+function toggleBrake() { state.brakeBtnOn = !state.brakeBtnOn; updateBrake(); }
+function cycleGear(step) {
+  state.gear = (state.gear + step + GEARS.length) % GEARS.length;
+  el.gear.value = String(state.gear);
+  savePrefs(); updateDriveLabels();
+}
+function updateDriveLabels() {
+  const gr = GEARS[state.gear];
+  el.svgRatio.textContent = `${gr.teeth}:16`;
+  el.figCaption.textContent =
+    `踏频 × 齿比 × 轮周长 = 速度：${state.cadence.toFixed(0)} rpm × ${gr.ratio.toFixed(2)} × ${(2 * Math.PI * WHEEL_R).toFixed(2)} m = ${(state.v * 3.6).toFixed(1)} km/h`;
+}
 
 document.querySelectorAll('[data-act]').forEach(b => b.addEventListener('click', () => {
   const a = b.dataset.act;
   if (a === 'bloom') { state.bloom = !state.bloom; bloom.enabled = state.bloom; b.setAttribute('aria-pressed', String(state.bloom)); }
   if (a === 'audio') { state.audioOn = !state.audioOn; if (state.audioOn) Audio.start(); else Audio.stop(); b.setAttribute('aria-pressed', String(state.audioOn)); }
   if (a === 'orbit') { state.orbit = !state.orbit; controls.autoRotate = state.orbit; controls.autoRotateSpeed = 0.6; b.setAttribute('aria-pressed', String(state.orbit)); }
+  if (a === 'brake') toggleBrake();
   if (a === 'shot') snapshot();
   if (a === 'help') el.help.classList.toggle('open');
+  if (a === 'table') {
+    const on = el.dataTable.hasAttribute('hidden');
+    if (on) { el.dataTable.removeAttribute('hidden'); el.chart.parentElement.hidden = true; updateTable(); }
+    else { el.dataTable.setAttribute('hidden', ''); el.chart.parentElement.hidden = false; }
+    b.setAttribute('aria-pressed', String(on));
+  }
 }));
 document.querySelectorAll('[data-cam]').forEach(b => b.addEventListener('click', () => setCam(b.dataset.cam)));
 el.help.addEventListener('click', (e) => { if (e.target === el.help || e.target.closest('button')) el.help.classList.remove('open'); });
@@ -936,15 +1285,35 @@ addEventListener('keydown', (e) => {
   if (e.target.matches('input,select')) return;
   const k = e.key.toLowerCase();
   if (k === ' ') { e.preventDefault(); honk(); }
-  else if (e.key === 'ArrowUp') { state.speed = Math.min(60, state.speed + 4); el.speed.value = state.speed; syncSpeed(); }
-  else if (e.key === 'ArrowDown') { state.speed = Math.max(0, state.speed - 4); el.speed.value = state.speed; syncSpeed(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); nudgeSpeed(2); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); nudgeSpeed(-2); }
+  else if (k === 'g') cycleGear(1);
+  else if (k === 's') { state.brakeKey = true; updateBrake(); }
+  else if (k === 'j') jump();
+  else if (k === 't') el.tableBtn.click();
   else if (k === 'b') { bloom.enabled = !bloom.enabled; state.bloom = bloom.enabled; document.querySelector('[data-act=bloom]').setAttribute('aria-pressed', String(state.bloom)); }
-  else if (k === 'n') { state.light = state.light === 'night' ? 'sunset' : 'night'; el.light.value = state.light; setPalette(state.light); }
+  else if (k === 'n') { state.light = state.light === 'night' ? 'sunset' : 'night'; el.light.value = state.light; setPalette(state.light); savePrefs(); }
   else if (k === 'p') snapshot();
   else if (k === 'h') el.help.classList.toggle('open');
-  else if (k === 'r') { state.speed = 30; state.pose = 'cruise'; el.speed.value = 30; el.pose.value = 'cruise'; syncSpeed(); setCam('side'); }
+  else if (k === 'r') {
+    state.speed = 30; state.pose = 'cruise'; state.gear = 2;
+    state.brakeKey = false; state.brakeBtnOn = false; state.brakeAuto = 0; updateBrake();
+    el.speed.value = 30; el.pose.value = 'cruise'; el.gear.value = '2';
+    syncSpeed(); setCam('side'); updateDriveLabels(); savePrefs();
+  }
   else if (['1', '2', '3', '4'].includes(k)) setCam(['side', 'front', 'chase', 'bird'][+k - 1]);
 });
+addEventListener('keyup', (e) => {
+  if (e.key.toLowerCase() === 's') { state.brakeKey = false; updateBrake(); }
+});
+function nudgeSpeed(d) {
+  state.speed = Math.max(0, Math.min(45, state.speed + d));
+  el.speed.value = state.speed; syncSpeed();
+}
+function jump() {
+  if (state.jumpY > 0.02 || state.v < 2) return;
+  state.jumpV = 3.6; state.flap = 1;
+}
 function syncSpeed() { el.speedOut.textContent = state.speed.toFixed(1); }
 
 function honk() { state.honk = 1; state.flap = 1; Audio.honk(); }
@@ -971,6 +1340,148 @@ canvas.addEventListener('pointerup', (e) => {
   else honk();
 });
 
+/* ------------------------------------------------------------------ 读数曲线（速度 / 踏频 / 路面剖面） */
+const CH = { N: 240, dt: 0.25, acc: 0, t: [], v: [], cad: [], el: [], w: [], gr: [], hover: -1, drawAcc: 0, tableAcc: 0 };
+let rideTime = 0;
+function pushSample() {
+  CH.t.push(rideTime); CH.v.push(state.v * 3.6); CH.cad.push(state.cadence);
+  CH.el.push(terrainY(state.dist, 0)); CH.w.push(state.power); CH.gr.push(state.grade * 100);
+  for (const k of ['t', 'v', 'cad', 'el', 'w', 'gr']) if (CH[k].length > CH.N) CH[k].shift();
+}
+const c2d = el.chart.getContext('2d');
+const cssVar = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+let CC = null;
+function readChartColors() {
+  CC = { speed: cssVar('--s-speed'), cad: cssVar('--s-cad'), elev: cssVar('--s-elev'),
+         grid: cssVar('--grid'), dim: cssVar('--dim'), text: cssVar('--text'), surface: cssVar('--plot') };
+}
+const PAD = { l: 30, r: 44 };
+function sizeChart() {
+  const w = Math.max(120, el.chart.clientWidth || 260), h = 196, dpr = Math.min(2, devicePixelRatio || 1);
+  el.chart.width = Math.round(w * dpr); el.chart.height = Math.round(h * dpr);
+  c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function niceMax(v, step) { return Math.max(step, Math.ceil(v / step) * step); }
+function drawChart() {
+  if (!CC) readChartColors();
+  const W = Math.max(120, el.chart.clientWidth || 260), H = 196, n = CH.v.length;
+  c2d.clearRect(0, 0, W, H);
+  c2d.font = '500 9px "IBM Plex Mono",monospace';
+  const x0 = PAD.l, x1 = W - PAD.r, plotW = Math.max(10, x1 - x0);
+  const X = (i) => x0 + (n < 2 ? plotW : (i / (n - 1)) * plotW);
+
+  let vMax = 15, eMin = 0, eMax = 1;
+  for (let i = 0; i < n; i++) {
+    if (CH.v[i] > vMax) vMax = CH.v[i];
+    if (CH.el[i] < eMin) eMin = CH.el[i];
+    if (CH.el[i] > eMax) eMax = CH.el[i];
+  }
+  const ePad = Math.max(0.4, (eMax - eMin) * 0.15);
+  eMin -= ePad; eMax += ePad;
+
+  const bands = [
+    { y: 8,   h: 62, min: 0, max: niceMax(vMax, 15), ticks: [0, niceMax(vMax, 15)], color: CC.speed, name: '速度', unit: 'km/h', data: CH.v, area: false },
+    { y: 82,  h: 46, min: 0, max: 140, ticks: [0, 70, 140], color: CC.cad, name: '踏频', unit: 'rpm', data: CH.cad, area: false },
+    { y: 136, h: 40, min: eMin, max: eMax, ticks: [eMin, eMax], color: CC.elev, name: '剖面', unit: 'm', data: CH.el, area: true },
+  ];
+
+  for (const b of bands) {
+    const Y = (v) => b.y + b.h - ((v - b.min) / (b.max - b.min || 1)) * b.h;
+    c2d.strokeStyle = CC.grid; c2d.lineWidth = 1; c2d.fillStyle = CC.dim;
+    c2d.textAlign = 'right'; c2d.textBaseline = 'middle';
+    for (const tk of b.ticks) {
+      const y = Math.round(Y(tk)) + 0.5;
+      c2d.beginPath(); c2d.moveTo(x0, y); c2d.lineTo(x1, y); c2d.stroke();
+      c2d.fillText(tk.toFixed(b.unit === 'm' ? 1 : 0), x0 - 5, y);
+    }
+    if (n > 1) {
+      if (b.area) {
+        c2d.beginPath(); c2d.moveTo(X(0), Y(b.data[0]));
+        for (let i = 1; i < n; i++) c2d.lineTo(X(i), Y(b.data[i]));
+        c2d.lineTo(X(n - 1), b.y + b.h); c2d.lineTo(X(0), b.y + b.h); c2d.closePath();
+        c2d.fillStyle = b.color; c2d.globalAlpha = 0.18; c2d.fill(); c2d.globalAlpha = 1;
+      }
+      c2d.beginPath(); c2d.moveTo(X(0), Y(b.data[0]));
+      for (let i = 1; i < n; i++) c2d.lineTo(X(i), Y(b.data[i]));
+      c2d.strokeStyle = b.color; c2d.lineWidth = 2; c2d.lineJoin = 'round'; c2d.stroke();
+      const last = b.data[n - 1], lx = X(n - 1), ly = Y(last);
+      c2d.beginPath(); c2d.arc(lx, ly, 4.5, 0, Math.PI * 2);
+      c2d.fillStyle = CC.surface; c2d.fill();
+      c2d.beginPath(); c2d.arc(lx, ly, 3.2, 0, Math.PI * 2);
+      c2d.fillStyle = b.color; c2d.fill();
+      c2d.fillStyle = CC.text; c2d.textAlign = 'left';
+      c2d.fillText(last.toFixed(b.unit === 'm' ? 2 : (b.unit === 'km/h' ? 1 : 0)), lx + 7, ly);
+    }
+    const tag = `${b.name} ${b.unit}`;
+    const tw = c2d.measureText(tag).width;
+    c2d.fillStyle = CC.surface; c2d.globalAlpha = 0.72;
+    c2d.fillRect(x0 + 1, b.y + 1, tw + 8, 13);
+    c2d.globalAlpha = 1;
+    c2d.fillStyle = CC.dim; c2d.textAlign = 'left'; c2d.textBaseline = 'top';
+    c2d.fillText(tag, x0 + 5, b.y + 3);
+  }
+
+  c2d.fillStyle = CC.dim; c2d.textAlign = 'left'; c2d.textBaseline = 'alphabetic';
+  c2d.fillText('-60 s', x0, H - 5);
+  c2d.textAlign = 'right'; c2d.fillText('现在', x1, H - 5);
+
+  if (CH.hover >= 0 && n > 1) {
+    const i = Math.max(0, Math.min(n - 1, CH.hover)), x = Math.round(X(i)) + 0.5;
+    c2d.save();
+    c2d.setLineDash([3, 3]); c2d.strokeStyle = CC.dim; c2d.lineWidth = 1;
+    c2d.beginPath(); c2d.moveTo(x, 6); c2d.lineTo(x, H - 18); c2d.stroke();
+    c2d.restore();
+    for (const b of bands) {
+      const y = Y2(b, b.data[i]);
+      c2d.beginPath(); c2d.arc(x, y, 3, 0, Math.PI * 2); c2d.fillStyle = b.color; c2d.fill();
+    }
+  }
+  function Y2(b, v) { return b.y + b.h - ((v - b.min) / (b.max - b.min || 1)) * b.h; }
+}
+function updateTip(clientX) {
+  const n = CH.v.length;
+  if (n < 2) { el.tip.style.display = 'none'; return; }
+  const rect = el.chart.getBoundingClientRect();
+  const x0 = PAD.l, x1 = rect.width - PAD.r;
+  const f = (clientX - rect.left - x0) / Math.max(1, x1 - x0);
+  if (f < -0.02 || f > 1.02) { CH.hover = -1; el.tip.style.display = 'none'; return; }
+  const i = Math.max(0, Math.min(n - 1, Math.round(f * (n - 1))));
+  CH.hover = i;
+  el.tip.style.display = 'block';
+  el.tip.innerHTML =
+    `t ${CH.t[i].toFixed(0)} s<br>速度 ${CH.v[i].toFixed(1)} km/h<br>踏频 ${CH.cad[i].toFixed(0)} rpm<br>剖面 ${CH.el[i].toFixed(2)} m`;
+  const px = Math.min(rect.width - 110, Math.max(4, x0 + (i / (n - 1)) * (x1 - x0) + 8));
+  el.tip.style.left = px + 'px';
+  el.tip.style.top = '6px';
+  drawChart();
+}
+el.chart.addEventListener('pointermove', (e) => updateTip(e.clientX));
+el.chart.addEventListener('pointerleave', () => { CH.hover = -1; el.tip.style.display = 'none'; drawChart(); });
+function updateTable() {
+  const n = CH.v.length; if (n < 1) return;
+  const rows = [];
+  for (let i = Math.max(0, n - 10); i < n; i++) {
+    rows.push(`<tr><td>${CH.t[i].toFixed(0)}s</td><td>${CH.v[i].toFixed(1)}</td><td>${CH.cad[i].toFixed(0)}</td>` +
+              `<td>${CH.w[i].toFixed(0)}</td><td>${CH.gr[i].toFixed(1)}</td></tr>`);
+  }
+  el.dataBody.innerHTML = rows.join('');
+}
+
+const EVADE_LABEL = { brake: '制动', swerve: '绕开', jump: '跳起', bell: '按铃' };
+function updateStatePill(cadence) {
+  let label = '巡航', st = 'cruise';
+  if (state.crash > 0) { label = '撞上' + (state.crashWhat || '障碍'); st = 'limp'; }
+  else if (state.jumpY > 0.05) { label = '腾空'; st = 'air'; }
+  else if (state.braking) { label = '制动中'; st = 'evade'; }
+  else if (state.evade) { label = '避让 · ' + (EVADE_LABEL[state.evade] || state.evade); st = 'evade'; }
+  else if (state.pose === 'rest') { label = '滑行'; st = 'cruise'; }
+  else if (cadence > 115) { label = '踏频过高 该升档'; st = 'limp'; }
+  else if (cadence < 45 && state.v > 2) { label = '踏频过低 该降档'; st = 'climb'; }
+  else if (state.grade > 0.025) { label = '爬坡'; st = 'climb'; }
+  el.stState.textContent = label;
+  el.stState.dataset.state = st;
+}
+
 /* ------------------------------------------------------------------ resize */
 function resize() {
   const w = innerWidth, h = innerHeight;
@@ -978,9 +1489,11 @@ function resize() {
   camera.aspect = w / h; camera.updateProjectionMatrix();
   composer.setSize(w, h);
   bloom.setSize(w, h);
+  sizeChart(); drawChart();
 }
 addEventListener('resize', resize);
 resize();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { readChartColors(); drawChart(); });
 
 /* ------------------------------------------------------------------ animation */
 let last = performance.now();
@@ -1038,39 +1551,99 @@ function animate() {
 
   updatePalette(dt);
 
-  // speed / motion
-  const targetV = state.pose === 'rest' ? 0 : (state.speed / 3.6) * (state.pose === 'sprint' ? 1.2 : 1);
-  state.v += (targetV - state.v) * Math.min(1, dt * 3);
+  /* 骑行动力学：骑手调功率去追目标速度，与风阻 / 滚阻 / 坡度平衡 */
+  rideTime += dt;
+  state.grade = grade(state.dist);
+  const th = Math.atan(state.grade);
+  const Froll = RIDER.Crr * MASS * RIDER.g * Math.cos(th);
+  const Fdrag = 0.5 * RIDER.rho * RIDER.CdA * state.v * state.v;
+  const Fgrade = MASS * RIDER.g * Math.sin(th);
+  const targetV = state.pose === 'rest' ? 0 : state.speed / 3.6;
+  const Pff = (Froll + Fdrag + Fgrade) * Math.max(state.v, 0.6) / RIDER.eff;   // 维持当前速度需要的功率
+  let P = Math.max(0, Math.min(POSE[state.pose].power, Pff + 45 * (targetV - state.v)));
+  if (state.braking || state.pose === 'rest') P = 0;
+  state.power = P;
+  const Fmax = 0.28 * MASS * RIDER.g;                                          // 牵引/舒适度上限
+  const Fdrive = Math.min(P * RIDER.eff / Math.max(state.v, 1.2), Fmax);
+  const Fbrake = state.braking ? RIDER.mu * MASS * RIDER.g : 0;
+  state.v = Math.max(0, state.v + ((Fdrive - Froll - Fdrag - Fgrade - Fbrake) / MASS) * dt);
   const v = state.v;
   state.dist += v * dt;
 
+  const ratio = GEARS[state.gear].ratio;
   const omega = v / WHEEL_R;
-  const cadence = (omega * GEAR) / (Math.PI * 2) * 60;
-  state.crankAngle += omega * GEAR * dt * pose.cad;
+  state.cadence = v > 0.05 ? (omega / ratio) * 60 / (2 * Math.PI) : 0;
+  const cadence = state.cadence;
+  state.crankAngle += (omega / ratio) * dt;
 
   wheelF.rotation.z -= omega * dt;
   wheelR.rotation.z -= omega * dt;
-  crank.rotation.z -= omega * GEAR * dt * pose.cad;
+  crank.rotation.z -= (omega / ratio) * dt;
   chainring.rotation.z = crank.rotation.z;
   cog.rotation.z -= omega * dt;
 
-  // scrolling ground / props
+  // 路面 / 堤坡 / 地面逐帧按剖面成形，景物站在剖面之上
+  sculptTerrain(road, state.dist, 0.012);
+  sculptTerrain(ground, state.dist, 0);
+  sculptTerrain(bank, state.dist, -0.9);
   roadTex.offset.x -= v * dt / 9.2;
   waterTex.offset.x -= v * dt * 0.02 + dt * 0.01;
   groundTex.offset.y -= v * dt * 0.004;
   for (const p of props) {
     p.position.x -= v * dt * (p.userData.speed || 1);
     if (p.position.x < -70) p.position.x += 140;
+    if (!p.userData.air) p.position.y = terrainY(p.position.x + state.dist, p.position.z);
   }
   motes.rotation.y += dt * 0.02;
   motes.position.x -= v * dt * 0.5;
   if (motes.position.x < -70) motes.position.x += 140;
 
-  // rig bob + pose tilt
+  /* 障碍：生成 → 决策 → 碰撞 */
+  if (state.brakeAuto > 0) { state.brakeAuto -= dt; if (state.brakeAuto <= 0) updateBrake(); }
+  if (state.evadeTimer > 0) { state.evadeTimer -= dt; if (state.evadeTimer <= 0) state.evade = ''; }
+  if (state.crash > 0) state.crash -= dt;
+  if (state.dist > state.nextHazardAt) {
+    spawnHazard(state.dist);
+    state.nextHazardAt = state.dist + 200 + Math.random() * 320;
+  }
+  let hz = null, hzD = 1e9;
+  for (let i = hazards.length - 1; i >= 0; i--) {
+    const h = hazards[i];
+    h.position.x -= v * dt;
+    if (h.userData.flee) h.position.z += Math.sign(h.position.z || 1) * dt * 1.8;
+    h.position.y = terrainY(h.position.x + state.dist, h.position.z);
+    if (h.position.x < -8) { scene.remove(h); hazards.splice(i, 1); continue; }
+    if (h.position.x > 0 && h.position.x < hzD) { hz = h; hzD = h.position.x; }
+    if (!h.userData.hit && Math.abs(h.position.x) < 0.75 && Math.abs(h.position.z - rig.position.z) < 0.6 && state.jumpY < 0.25) {
+      h.userData.hit = true;
+      state.v *= 0.35; state.crash = 1.6; state.crashWhat = h.userData.what;
+      state.swerveTarget = 0;
+      Audio.thud();
+    }
+    if (h.position.x < -2 && h.userData.resolved) {
+      state.swerveTarget = 0;
+      if (h.userData.resolved === 'brake' && state.brakeAuto > 0) { state.brakeAuto = 0; updateBrake(); }
+    }
+  }
+  if (hz && !hz.userData.resolved && hzD < 14) {
+    const act = chooseEvadeAction({
+      v, grade: state.grade, cadence, gear: state.gear, distToHazard: hzD,
+      lateralClear: Math.abs(hz.position.z) > 0.75, airborne: state.jumpY > 0.05, braking: state.braking,
+    });
+    if (act) { hz.userData.resolved = act; applyEvade(act, hz); }
+  }
+
+  // 车架贴地：前后轮各取剖面高度 → 俯仰；跳起与侧向绕开叠加在上面
+  const hR = terrainY(state.dist + REAR[0], rig.position.z);
+  const hF = terrainY(state.dist + FRONT[0], rig.position.z);
   const bob = REDUCE ? 0 : Math.sin(state.crankAngle * 2) * 0.012 * pose.bob * Math.min(1, v / 4);
   state.tilt += (pose.tilt - state.tilt) * Math.min(1, dt * 4);
-  rig.position.y = bob;
-  rig.rotation.z = Math.sin(t * 1.7) * 0.004 * (REDUCE ? 0 : 1);
+  state.jumpY += state.jumpV * dt; state.jumpV -= RIDER.g * dt;
+  if (state.jumpY < 0) { state.jumpY = 0; state.jumpV = 0; }
+  state.swerve += (state.swerveTarget - state.swerve) * Math.min(1, dt * 3.2);
+  rig.position.z = state.swerve;
+  rig.position.y = (hR + hF) / 2 + bob + state.jumpY;
+  rig.rotation.z = Math.atan2(hF - hR, FRONT[0] - REAR[0]) + Math.sin(t * 1.7) * 0.004 * (REDUCE ? 0 : 1);
   tilt.rotation.z = state.tilt;
   tilt.rotation.x = Math.sin(t * 2.3) * 0.006 * (REDUCE ? 0 : 1);
 
@@ -1141,14 +1714,31 @@ function animate() {
   }
   controls.update();
 
-  // stats
+  // 读数与曲线
   frames++; fpsT += dt;
+  CH.acc += dt;
+  if (CH.acc >= CH.dt) { CH.acc = 0; pushSample(); }
+  CH.drawAcc += dt;
+  if (CH.drawAcc >= 0.2) { CH.drawAcc = 0; drawChart(); }
+  if (!el.dataTable.hasAttribute('hidden')) {
+    CH.tableAcc += dt;
+    if (CH.tableAcc >= 0.6) { CH.tableAcc = 0; updateTable(); }
+  }
   if (fpsT > 0.4) {
     fps = frames / fpsT; frames = 0; fpsT = 0;
     el.stFps.textContent = fps.toFixed(0);
     el.stSpeed.textContent = (v * 3.6).toFixed(1);
     el.stCad.textContent = cadence.toFixed(0);
+    el.stPower.textContent = state.power.toFixed(0);
+    el.stGrade.textContent = (state.grade * 100).toFixed(1);
     el.stDist.textContent = (state.dist / 1000).toFixed(2);
+    if (state.dist > best) {
+      best = state.dist;
+      el.stBest.textContent = (best / 1000).toFixed(2);
+      if (best - PREFS.best > 150) savePrefs();
+    }
+    updateDriveLabels();
+    updateStatePill(cadence);
   }
 
   composer.render();
@@ -1156,6 +1746,12 @@ function animate() {
 
 /* ------------------------------------------------------------------ go */
 for (const m of allMats) if (m.map) m.map.needsUpdate = true;
+setPalette(state.light);
+el.light.value = state.light;
+readChartColors();
+updateDriveLabels();
+updateStatePill(0);
+spawnHazard(state.dist);          // 开场就让前方有一个待决策的障碍
 syncSpeed();
 animate();
 requestAnimationFrame(() => $('#loader').classList.add('done'));
